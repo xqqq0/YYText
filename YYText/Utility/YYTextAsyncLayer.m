@@ -155,24 +155,21 @@ static dispatch_queue_t YYTextAsyncLayerGetReleaseQueue() {
                 CGColorRelease(backgroundColor);
                 return;
             }
-            UIGraphicsBeginImageContextWithOptions(size, opaque, scale);
-            CGContextRef context = UIGraphicsGetCurrentContext();
-            if (opaque && context) {
-                CGContextSaveGState(context); {
-                    if (!backgroundColor || CGColorGetAlpha(backgroundColor) < 1) {
-                        CGContextSetFillColorWithColor(context, [UIColor whiteColor].CGColor);
-                        CGContextAddRect(context, CGRectMake(0, 0, size.width * scale, size.height * scale));
-                        CGContextFillPath(context);
+            UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size];
+            UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+                if (self.opaque) {
+                    if (!self.backgroundColor || CGColorGetAlpha(self.backgroundColor) < 1) {
+                        CGContextSetFillColorWithColor(context.CGContext, [UIColor whiteColor].CGColor);
+                        [context fillRect:self.bounds];
                     }
-                    if (backgroundColor) {
-                        CGContextSetFillColorWithColor(context, backgroundColor);
-                        CGContextAddRect(context, CGRectMake(0, 0, size.width * scale, size.height * scale));
-                        CGContextFillPath(context);
+                    
+                    if (self.backgroundColor) {
+                        CGContextSetFillColorWithColor(context.CGContext, self.backgroundColor);
+                        [context fillRect:self.bounds];
                     }
-                } CGContextRestoreGState(context);
-                CGColorRelease(backgroundColor);
-            }
-            task.display(context, size, isCancelled);
+                }
+                task.display(context.CGContext, self.bounds.size, ^{return NO;});
+            }];
             if (isCancelled()) {
                 UIGraphicsEndImageContext();
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -180,7 +177,6 @@ static dispatch_queue_t YYTextAsyncLayerGetReleaseQueue() {
                 });
                 return;
             }
-            UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
             UIGraphicsEndImageContext();
             if (isCancelled()) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -200,7 +196,7 @@ static dispatch_queue_t YYTextAsyncLayerGetReleaseQueue() {
     } else {
         [_sentinel increase];
         if (task.willDisplay) task.willDisplay(self);
-         if (self.bounds.size.width < 1 || self.bounds.size.height < 1) {
+        if (self.bounds.size.width < 1 || self.bounds.size.height < 1) {
             CGImageRef image = (__bridge_retained CGImageRef)(self.contents);
             self.contents = nil;
             if (image) {
